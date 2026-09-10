@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 import { useStore } from '@/store/useStore'
+import { getToolCursor } from '@/lib/toolCursor'
 import Stamp from './Stamp'
 
 export default function PDFViewer() {
   const { pdfFile, pdfPages, setPdfPages, stamps, setSelectedStampId, selectedTool, addStamp, showSignatureModal, setEditingStampId, checkmarkVariant } = useStore()
   const containerRef = useRef<HTMLDivElement>(null)
+  const pageCursor = getToolCursor(selectedTool, checkmarkVariant)
 
   useEffect(() => {
     if (!pdfFile) return
@@ -119,7 +121,7 @@ export default function PDFViewer() {
           key={pageIndex}
           className="relative bg-white shadow-lg"
           onClick={(e) => handlePageClick(e, pageIndex)}
-          style={{ cursor: 'crosshair' }}
+          style={{ cursor: pageCursor }}
         >
           <img src={page} alt={`Page ${pageIndex + 1}`} className="block" draggable={false} />
           {stamps
