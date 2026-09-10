@@ -5,10 +5,12 @@ import { useStore, Stamp as StampType } from '@/store/useStore'
 
 interface StampProps {
   stamp: StampType
+  scale?: number
 }
 
-export default function Stamp({ stamp }: StampProps) {
+export default function Stamp({ stamp, scale = 1 }: StampProps) {
   const { selectedStampId, setSelectedStampId, updateStamp, removeStamp, setEditingStampId, editingStampId } = useStore()
+  const displayScale = Number.isFinite(scale) && scale > 0 ? scale : 1
   const isSelected = selectedStampId === stamp.id
   const isEditing = editingStampId === stamp.id
   const [isResizing, setIsResizing] = useState(false)
@@ -48,15 +50,15 @@ export default function Stamp({ stamp }: StampProps) {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
-        const dx = e.clientX - dragStart.current.x
-        const dy = e.clientY - dragStart.current.y
+        const dx = (e.clientX - dragStart.current.x) / displayScale
+        const dy = (e.clientY - dragStart.current.y) / displayScale
         updateStamp(stamp.id, {
           x: dragStart.current.stampX + dx,
           y: dragStart.current.stampY + dy,
         })
       } else if (isResizing) {
-        const dx = e.clientX - resizeStart.current.mouseX
-        const dy = e.clientY - resizeStart.current.mouseY
+        const dx = (e.clientX - resizeStart.current.mouseX) / displayScale
+        const dy = (e.clientY - resizeStart.current.mouseY) / displayScale
 
         if (stamp.type === 'seal') {
           const { width, height } = resizeStart.current
@@ -88,7 +90,7 @@ export default function Stamp({ stamp }: StampProps) {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, isResizing, stamp.id, stamp.type, updateStamp])
+  }, [displayScale, isDragging, isResizing, stamp.id, stamp.type, updateStamp])
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -139,7 +141,7 @@ export default function Stamp({ stamp }: StampProps) {
     }
 
     if (stamp.type === 'text') {
-      const fontSize = Math.max(12, Math.min(stamp.height * 0.6, 64))
+      const fontSize = Math.max(12 * displayScale, Math.min(stamp.height * displayScale * 0.6, 64 * displayScale))
       if (isEditing) {
         return (
           <input
@@ -165,7 +167,7 @@ export default function Stamp({ stamp }: StampProps) {
     }
 
     if (stamp.type === 'date') {
-      const fontSize = Math.max(12, Math.min(stamp.height * 0.6, 48))
+      const fontSize = Math.max(12 * displayScale, Math.min(stamp.height * displayScale * 0.6, 48 * displayScale))
       return (
         <span
           className="select-none truncate w-full h-full flex items-center px-1"
@@ -177,7 +179,7 @@ export default function Stamp({ stamp }: StampProps) {
     }
 
     if (stamp.type === 'checkmark') {
-      const fontSize = Math.min(stamp.width, stamp.height) * 0.9
+      const fontSize = Math.min(stamp.width, stamp.height) * displayScale * 0.9
       return (
         <span
           className="select-none w-full h-full flex items-center justify-center"
@@ -198,10 +200,10 @@ export default function Stamp({ stamp }: StampProps) {
         isSelected ? 'outline outline-2 outline-blue-500' : ''
       }`}
       style={{
-        left: stamp.x,
-        top: stamp.y,
-        width: stamp.width,
-        height: stamp.height,
+        left: stamp.x * displayScale,
+        top: stamp.y * displayScale,
+        width: stamp.width * displayScale,
+        height: stamp.height * displayScale,
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}

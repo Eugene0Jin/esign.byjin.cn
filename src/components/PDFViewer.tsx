@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useStore } from '@/store/useStore'
 import { getToolCursor } from '@/lib/toolCursor'
 import { PDF_RENDER_SCALE } from '@/lib/pdfConstants'
@@ -9,7 +9,39 @@ import Stamp from './Stamp'
 export default function PDFViewer() {
   const { pdfFile, pdfPages, setPdfPages, stamps, setSelectedStampId, selectedTool, addStamp, showSignatureModal, showSealModal, setEditingStampId, checkmarkVariant } = useStore()
   const containerRef = useRef<HTMLDivElement>(null)
+  const pageImageRefs = useRef<Array<HTMLImageElement | null>>([])
+  const [pageScales, setPageScales] = useState<Record<number, number>>({})
   const pageCursor = getToolCursor(selectedTool, checkmarkVariant)
+
+  const updatePageScale = useCallback((pageIndex: number, image: HTMLImageElement) => {
+    if (image.naturalWidth === 0) return
+
+    const scale = image.getBoundingClientRect().width / image.naturalWidth
+    if (!Number.isFinite(scale) || scale <= 0) return
+
+    setPageScales((current) => {
+      if (Math.abs((current[pageIndex] ?? 0) - scale) < 0.0001) return current
+      return { ...current, [pageIndex]: scale }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const image = entry.target as HTMLImageElement
+        const pageIndex = Number(image.dataset.pageIndex)
+        if (Number.isInteger(pageIndex)) updatePageScale(pageIndex, image)
+      }
+    })
+
+    for (const image of pageImageRefs.current) {
+      if (image) observer.observe(image)
+    }
+
+    return () => observer.disconnect()
+  }, [pdfPages, updatePageScale])
 
   useEffect(() => {
     if (!pdfFile) return
@@ -47,8 +79,12 @@ export default function PDFViewer() {
     if (target.closest('.stamp-element')) return
 
     const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const pageImage = pageImageRefs.current[pageIndex]
+    const displayScale = pageImage?.naturalWidth
+      ? pageImage.getBoundingClientRect().width / pageImage.naturalWidth
+      : 1
+    const x = (e.clientX - rect.left) / displayScale
+    const y = (e.clientY - rect.top) / displayScale
 
     if (selectedTool === 'select') {
       setSelectedStampId(null)
@@ -128,11 +164,19 @@ export default function PDFViewer() {
           onClick={(e) => handlePageClick(e, pageIndex)}
           style={{ cursor: pageCursor }}
         >
-          <img src={page} alt={`Page ${pageIndex + 1}`} className="block" draggable={false} />
+          <img
+            ref={(image) => { pageImageRefs.current[pageIndex] = image }}
+            src={page}
+            alt={`Page ${pageIndex + 1}`}
+            className="block"
+            data-page-index={pageIndex}
+            onLoad={(event) => updatePageScale(pageIndex, event.currentTarget)}
+            draggable={false}
+          />
           {stamps
             .filter((stamp) => stamp.pageIndex === pageIndex)
             .map((stamp) => (
-              <Stamp key={stamp.id} stamp={stamp} />
+              <Stamp key={stamp.id} stamp={stamp} scale={pageScales[pageIndex] ?? 1} />
             ))}
         </div>
       ))}
