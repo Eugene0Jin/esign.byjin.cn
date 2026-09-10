@@ -44,6 +44,7 @@ function SealEditor({ initialConfig, hasSavedSeal }: SealEditorProps) {
       template: template.id,
       size: getDefaultSealSize(template.id),
       organizationName: config.organizationName || DEFAULT_SEAL_CONFIG.organizationName,
+      realism: 0,
     }),
   })), [config])
 
@@ -87,6 +88,7 @@ function SealEditor({ initialConfig, hasSavedSeal }: SealEditorProps) {
         height: dimensions.height,
         content,
         pageIndex: sealModal.pageIndex,
+        rotation: normalized.rotation,
       })
       saveSealConfig(normalized)
       setSelectedStampId(id)
@@ -243,11 +245,58 @@ function SealEditor({ initialConfig, hasSavedSeal }: SealEditorProps) {
             <h3 className="text-sm font-medium text-gray-900">Seal preview</h3>
             <div className="mt-3 flex aspect-square items-center justify-center rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl} alt="Seal preview" className="h-full w-full object-contain" />
+              <img
+                src={previewUrl}
+                alt="Seal preview"
+                className="h-full w-full object-contain"
+                style={{ transform: `rotate(${config.rotation}deg)` }}
+              />
             </div>
             <p className="mt-3 text-center text-xs text-gray-500">
               {sizeOptions.find((option) => option.id === config.size)?.label}
             </p>
+            <label className="mt-4 block">
+              <span className="flex items-center justify-between text-sm font-medium text-gray-900">
+                <span>Rotation</span>
+                <output className="tabular-nums text-sm font-normal text-gray-600">{config.rotation}°</output>
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={360}
+                step={1}
+                value={config.rotation}
+                onChange={(event) => updateConfig('rotation', Number(event.target.value))}
+                aria-label="Seal rotation"
+                className="mt-2 w-full cursor-pointer accent-blue-600"
+              />
+              <span className="mt-1 flex justify-between text-[11px] text-gray-400" aria-hidden="true">
+                <span>0°</span>
+                <span>180°</span>
+                <span>360°</span>
+              </span>
+            </label>
+            <label className="mt-4 block border-t border-gray-200 pt-4">
+              <span className="flex items-center justify-between text-sm font-medium text-gray-900">
+                <span>Realism</span>
+                <output className="tabular-nums text-sm font-normal text-gray-600">{config.realism}%</output>
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={config.realism}
+                onChange={(event) => updateConfig('realism', Number(event.target.value))}
+                aria-label="Seal realism"
+                className="mt-2 w-full cursor-pointer accent-blue-600"
+              />
+              <span className="mt-1 flex justify-between text-[11px] text-gray-400" aria-hidden="true">
+                <span>Clean</span>
+                <span>Natural</span>
+                <span>Worn</span>
+              </span>
+            </label>
           </aside>
         </div>
 

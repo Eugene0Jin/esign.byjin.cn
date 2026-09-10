@@ -32,6 +32,7 @@ export default function PDFUploader() {
       <input
         type="file"
         accept=".pdf"
+        aria-label="Upload PDF"
         onChange={handleChange}
         className="hidden"
         id="pdf-upload"

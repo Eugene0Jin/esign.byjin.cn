@@ -16,6 +16,7 @@ export interface Stamp {
   content: string
   pageIndex: number
   fontFamily?: string
+  rotation?: number
 }
 
 interface ContextMenu {

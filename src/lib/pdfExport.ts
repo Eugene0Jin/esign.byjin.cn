@@ -1,4 +1,4 @@
-import { PDFDocument, rgb } from 'pdf-lib'
+import { degrees, PDFDocument, rgb } from 'pdf-lib'
 import type { Stamp } from '@/store/useStore'
 
 export async function exportPdf(
@@ -41,11 +41,19 @@ export async function exportPdf(
       const imageBytes = Uint8Array.from(atob(imageData), (c) => c.charCodeAt(0))
       const pngImage = await pdfDoc.embedPng(imageBytes)
 
+      const rotation = stamp.type === 'seal' ? stamp.rotation ?? 0 : 0
+      const pdfRotation = -rotation * Math.PI / 180
+      const centerX = pdfX + pdfWidth / 2
+      const centerY = pdfY + pdfHeight / 2
+      const rotatedCenterOffsetX = pdfWidth / 2 * Math.cos(pdfRotation) - pdfHeight / 2 * Math.sin(pdfRotation)
+      const rotatedCenterOffsetY = pdfWidth / 2 * Math.sin(pdfRotation) + pdfHeight / 2 * Math.cos(pdfRotation)
+
       page.drawImage(pngImage, {
-        x: pdfX,
-        y: pdfY,
+        x: centerX - rotatedCenterOffsetX,
+        y: centerY - rotatedCenterOffsetY,
         width: pdfWidth,
         height: pdfHeight,
+        rotate: degrees(-rotation),
       })
     } else if (stamp.type === 'text' || stamp.type === 'date') {
       // Draw text

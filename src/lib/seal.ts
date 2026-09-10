@@ -11,6 +11,8 @@ export interface SealConfig {
   centerText: string
   serialText: string
   color: SealColor
+  rotation: number
+  realism: number
 }
 
 interface SealSizeOption {
@@ -49,6 +51,8 @@ export const DEFAULT_SEAL_CONFIG: SealConfig = {
   centerText: '',
   serialText: '',
   color: 'red',
+  rotation: 0,
+  realism: 0,
 }
 
 const SEAL_STORAGE_KEY = 'free-esign.saved-seal.v1'
@@ -100,6 +104,12 @@ export function normalizeSealConfig(config: SealConfig): SealConfig {
     centerText: sliceCharacters(config.centerText.trim(), 10),
     serialText: sliceCharacters(config.serialText.trim(), 20),
     color: sealColors.has(config.color) ? config.color : DEFAULT_SEAL_CONFIG.color,
+    rotation: Number.isFinite(config.rotation)
+      ? Math.min(360, Math.max(0, Math.round(config.rotation)))
+      : DEFAULT_SEAL_CONFIG.rotation,
+    realism: Number.isFinite(config.realism)
+      ? Math.min(100, Math.max(0, Math.round(config.realism)))
+      : DEFAULT_SEAL_CONFIG.realism,
   }
 }
 
@@ -112,7 +122,9 @@ const isSealConfig = (value: unknown): value is SealConfig => {
     typeof candidate.organizationName === 'string' &&
     typeof candidate.centerText === 'string' &&
     typeof candidate.serialText === 'string' &&
-    typeof candidate.color === 'string' && sealColors.has(candidate.color as SealColor)
+    typeof candidate.color === 'string' && sealColors.has(candidate.color as SealColor) &&
+    typeof candidate.rotation === 'number' && Number.isFinite(candidate.rotation) &&
+    typeof candidate.realism === 'number' && Number.isFinite(candidate.realism)
   )
 }
 
@@ -131,8 +143,13 @@ export function loadSavedSealConfig(): SealConfig | null {
     const storedConfig = saved.config && typeof saved.config === 'object'
       ? saved.config as Record<string, unknown>
       : null
-    const migratedConfig = storedConfig?.template === 'double-ring'
-      ? { ...storedConfig, template: 'plain-round' }
+    const migratedConfig = storedConfig
+      ? {
+          ...storedConfig,
+          template: storedConfig.template === 'double-ring' ? 'plain-round' : storedConfig.template,
+          rotation: typeof storedConfig.rotation === 'number' ? storedConfig.rotation : 0,
+          realism: typeof storedConfig.realism === 'number' ? storedConfig.realism : 0,
+        }
       : saved.config
 
     if (!isSealConfig(migratedConfig)) return null
@@ -190,6 +207,82 @@ const getNameFontSize = (value: string, oval: boolean) => {
   return Math.max(22, Math.min(64, availableArcWidth / weightedLength))
 }
 
+const hashString = (value: string) => Array.from(value).reduce(
+  (hash, character) => Math.imul(hash ^ character.codePointAt(0)!, 16777619) >>> 0,
+  2166136261,
+)
+
+const createSeededRandom = (seed: number) => {
+  let state = seed || 1
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0
+    return state / 4294967296
+  }
+}
+
+const formatSvgNumber = (value: number) => value.toFixed(2)
+
+const createSealDistress = (config: SealConfig, width: number, height: number) => {
+  const strength = config.realism / 100
+  if (strength <= 0) return { definitions: '', attributes: '' }
+
+  const seed = hashString([
+    config.template,
+    config.size,
+    config.organizationName,
+    config.centerText,
+    config.serialText,
+    config.color,
+  ].join('|'))
+  const random = createSeededRandom(seed)
+  const scale = Math.min(width, height) / 600
+  const speckleCount = Math.round(20 + strength * 900)
+  const streakCount = Math.round(strength * 64)
+  const patchCount = Math.round(strength * 24)
+
+  const speckles = Array.from({ length: speckleCount }, () => {
+    const centerX = random() * width
+    const centerY = random() * height
+    const radiusX = (0.5 + random() * (1.5 + strength * 5)) * scale
+    const radiusY = (0.35 + random() * (1 + strength * 3)) * scale
+    const opacity = 0.38 + strength * 0.42 + random() * 0.2
+    return `<ellipse cx="${formatSvgNumber(centerX)}" cy="${formatSvgNumber(centerY)}" rx="${formatSvgNumber(radiusX)}" ry="${formatSvgNumber(radiusY)}" transform="rotate(${formatSvgNumber(random() * 180)} ${formatSvgNumber(centerX)} ${formatSvgNumber(centerY)})" fill="black" fill-opacity="${formatSvgNumber(Math.min(opacity, 1))}"/>`
+  }).join('')
+
+  const streaks = Array.from({ length: streakCount }, () => {
+    const streakWidth = (8 + random() * (34 + strength * 50)) * scale
+    const streakHeight = (0.5 + random() * (1.5 + strength * 3)) * scale
+    const x = random() * Math.max(width - streakWidth, 1)
+    const y = random() * height
+    return `<rect x="${formatSvgNumber(x)}" y="${formatSvgNumber(y)}" width="${formatSvgNumber(streakWidth)}" height="${formatSvgNumber(streakHeight)}" rx="${formatSvgNumber(streakHeight / 2)}" fill="black" fill-opacity="${formatSvgNumber(0.35 + random() * 0.5)}"/>`
+  }).join('')
+
+  const patches = Array.from({ length: patchCount }, () => {
+    const centerX = random() * width
+    const centerY = random() * height
+    const patchWidth = (6 + random() * (14 + strength * 28)) * scale
+    const patchHeight = (2 + random() * (5 + strength * 9)) * scale
+    return `<ellipse cx="${formatSvgNumber(centerX)}" cy="${formatSvgNumber(centerY)}" rx="${formatSvgNumber(patchWidth / 2)}" ry="${formatSvgNumber(patchHeight / 2)}" transform="rotate(${formatSvgNumber(-18 + random() * 36)} ${formatSvgNumber(centerX)} ${formatSvgNumber(centerY)})" fill="black" fill-opacity="${formatSvgNumber(0.28 + strength * 0.48)}"/>`
+  }).join('')
+
+  const opacity = formatSvgNumber(1 - strength * 0.12)
+  const displacement = formatSvgNumber(strength * 1.6)
+
+  return {
+    definitions: `
+      <mask id="seal-distress-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">
+        <rect width="${width}" height="${height}" fill="white"/>
+        ${speckles}${streaks}${patches}
+      </mask>
+      <filter id="seal-distress-wobble" x="-3%" y="-3%" width="106%" height="106%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="${seed % 997}" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="${displacement}" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    `,
+    attributes: `mask="url(#seal-distress-mask)" filter="url(#seal-distress-wobble)" opacity="${opacity}"`,
+  }
+}
+
 export function createSealSvg(config: SealConfig): string {
   const normalized = normalizeSealConfig(config)
   const size = getSealSize(normalized.size)
@@ -201,6 +294,7 @@ export function createSealSvg(config: SealConfig): string {
   const serialText = escapeXml(normalized.serialText)
   const oval = isOvalTemplate(normalized.template)
   const nameFontSize = getNameFontSize(normalized.organizationName, oval)
+  const distress = createSealDistress(normalized, width, height)
 
   const commonText = `font-family="${SVG_FONT_STACK}" fill="${color}" text-anchor="middle"`
 
@@ -213,14 +307,17 @@ export function createSealSvg(config: SealConfig): string {
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
         <defs>
           <path id="seal-name-path" d="M 48 ${namePathY} A 252 ${radiusY * 0.82} 0 0 1 552 ${namePathY}"/>
+          ${distress.definitions}
         </defs>
-        <ellipse cx="300" cy="${centerY}" rx="280" ry="${radiusY}" fill="none" stroke="${color}" stroke-width="13"/>
-        <text ${commonText} font-size="${nameFontSize}" font-weight="600" letter-spacing="2">
-          <textPath href="#seal-name-path" startOffset="50%" text-anchor="middle">${organizationName}</textPath>
-        </text>
-        <polygon points="${createStarPoints(300, starY, 48)}" fill="${color}"/>
-        ${centerText ? `<text x="300" y="${centerY + 68}" ${commonText} font-size="42" font-weight="600">${centerText}</text>` : ''}
-        ${serialText ? `<text x="300" y="${height - 36}" ${commonText} font-size="30" font-weight="500" letter-spacing="5">${serialText}</text>` : ''}
+        <g ${distress.attributes}>
+          <ellipse cx="300" cy="${centerY}" rx="280" ry="${radiusY}" fill="none" stroke="${color}" stroke-width="13"/>
+          <text ${commonText} font-size="${nameFontSize}" font-weight="600" letter-spacing="2">
+            <textPath href="#seal-name-path" startOffset="50%" text-anchor="middle">${organizationName}</textPath>
+          </text>
+          <polygon points="${createStarPoints(300, starY, 48)}" fill="${color}"/>
+          ${centerText ? `<text x="300" y="${centerY + 68}" ${commonText} font-size="42" font-weight="600">${centerText}</text>` : ''}
+          ${serialText ? `<text x="300" y="${height - 36}" ${commonText} font-size="30" font-weight="500" letter-spacing="5">${serialText}</text>` : ''}
+        </g>
       </svg>
     `.trim()
   }
@@ -238,14 +335,17 @@ export function createSealSvg(config: SealConfig): string {
     <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
       <defs>
         <path id="seal-name-path" d="M ${namePathStart} ${namePathY} A ${nameRadius} ${nameRadius} 0 1 1 ${namePathEnd} ${namePathY}"/>
+        ${distress.definitions}
       </defs>
-      <circle cx="300" cy="300" r="270" fill="none" stroke="${color}" stroke-width="14"/>
-      <text ${commonText} font-size="${nameFontSize}" font-weight="500" letter-spacing="2">
-        <textPath href="#seal-name-path" startOffset="50%" text-anchor="middle">${organizationName}</textPath>
-      </text>
-      ${star}
-      ${centerText ? `<text x="300" y="${normalized.template === 'plain-round' ? 325 : 420}" ${commonText} font-size="44" font-weight="600">${centerText}</text>` : ''}
-      ${serialText ? `<text x="300" y="505" ${commonText} font-size="32" font-weight="500" letter-spacing="6">${serialText}</text>` : ''}
+      <g ${distress.attributes}>
+        <circle cx="300" cy="300" r="270" fill="none" stroke="${color}" stroke-width="14"/>
+        <text ${commonText} font-size="${nameFontSize}" font-weight="500" letter-spacing="2">
+          <textPath href="#seal-name-path" startOffset="50%" text-anchor="middle">${organizationName}</textPath>
+        </text>
+        ${star}
+        ${centerText ? `<text x="300" y="${normalized.template === 'plain-round' ? 325 : 420}" ${commonText} font-size="44" font-weight="600">${centerText}</text>` : ''}
+        ${serialText ? `<text x="300" y="505" ${commonText} font-size="32" font-weight="500" letter-spacing="6">${serialText}</text>` : ''}
+      </g>
     </svg>
   `.trim()
 }

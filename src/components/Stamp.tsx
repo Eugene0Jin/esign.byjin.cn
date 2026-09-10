@@ -129,6 +129,10 @@ export default function Stamp({ stamp }: StampProps) {
           src={stamp.content}
           alt={stamp.type === 'seal' ? 'Seal' : 'Signature'}
           className="w-full h-full object-contain pointer-events-none"
+          style={stamp.type === 'seal' ? {
+            transform: `rotate(${stamp.rotation ?? 0}deg)`,
+            transformOrigin: 'center',
+          } : undefined}
           draggable={false}
         />
       )
