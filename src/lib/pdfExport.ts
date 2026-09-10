@@ -61,6 +61,27 @@ function getPageLayout(page: PDFPage): PageLayout {
   }
 }
 
+function createRasterizedTextPng(text: string, width: number, height: number): Uint8Array {
+  const pixelRatio = 3
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.ceil(width * pixelRatio))
+  canvas.height = Math.max(1, Math.ceil(height * pixelRatio))
+
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas is not available')
+
+  const fontSize = Math.max(12, Math.min(height * 0.6, 48))
+  context.scale(pixelRatio, pixelRatio)
+  context.fillStyle = '#000000'
+  context.font = `${fontSize}px Arial, "Microsoft YaHei", "PingFang SC", sans-serif`
+  context.textAlign = 'left'
+  context.textBaseline = 'middle'
+  context.fillText(text, 4, height / 2)
+
+  const imageData = canvas.toDataURL('image/png').split(',')[1]
+  return Uint8Array.from(atob(imageData), (character) => character.charCodeAt(0))
+}
+
 export async function exportPdf(
   originalFile: File,
   stamps: Stamp[],
@@ -124,6 +145,21 @@ export async function exportPdf(
           width: pdfWidth,
           height: pdfHeight,
           rotate: degrees(-rotation),
+        })
+      } else if (stamp.type === 'date' && /[^\u0020-\u007e]/.test(stamp.content)) {
+        // Standard PDF fonts cannot encode CJK date separators. Rasterize only
+        // those date strings to retain the browser's system-font rendering.
+        const imageBytes = createRasterizedTextPng(
+          stamp.content,
+          stamp.width,
+          stamp.height
+        )
+        const dateImage = await pdfDoc.embedPng(imageBytes)
+        page.drawImage(dateImage, {
+          x: pdfX,
+          y: pdfY,
+          width: pdfWidth,
+          height: pdfHeight,
         })
       } else if (stamp.type === 'text' || stamp.type === 'date') {
         // Draw text

@@ -11,6 +11,11 @@ import {
   persistSignature,
   type SavedSignature,
 } from '@/lib/signature'
+import {
+  DEFAULT_DATE_FORMAT,
+  getTodayDateValue,
+  type DateFormat,
+} from '@/lib/date'
 
 export interface Stamp {
   id: string
@@ -23,6 +28,8 @@ export interface Stamp {
   pageIndex: number
   fontFamily?: string
   rotation?: number
+  dateValue?: string
+  dateFormat?: DateFormat
 }
 
 interface ContextMenu {
@@ -48,6 +55,11 @@ interface SealModal {
   pageIndex: number
 }
 
+interface DateModal {
+  visible: boolean
+  stampId: string | null
+}
+
 export type Tool = 'select' | 'signature' | 'seal' | 'text' | 'date' | 'checkmark'
 export type CheckmarkVariant = 'square' | 'check'
 
@@ -61,8 +73,11 @@ interface AppState {
   contextMenu: ContextMenu
   signatureModal: SignatureModal
   sealModal: SealModal
+  dateModal: DateModal
   savedSealConfig: SealConfig | null
   savedSignature: SavedSignature | null
+  lastDateValue: string
+  lastDateFormat: DateFormat
   editingStampId: string | null
   selectedTool: Tool
   checkmarkVariant: CheckmarkVariant
@@ -79,6 +94,10 @@ interface AppState {
   hideSignatureModal: () => void
   showSealModal: (x: number, y: number, pageIndex: number) => void
   hideSealModal: () => void
+  showDateModal: (stampId: string) => void
+  hideDateModal: () => void
+  setLastDateValue: (value: string) => void
+  setLastDateFormat: (format: DateFormat) => void
   saveSealConfig: (config: SealConfig) => void
   clearSavedSealConfig: () => void
   saveSignature: (signature: SavedSignature) => void
@@ -101,8 +120,11 @@ const initialState = {
   contextMenu: { visible: false, x: 0, y: 0, pageIndex: 0, viewportX: 0, viewportY: 0 },
   signatureModal: { visible: false, x: 0, y: 0, pageIndex: 0 },
   sealModal: { visible: false, x: 0, y: 0, pageIndex: 0 },
+  dateModal: { visible: false, stampId: null },
   savedSealConfig: loadSavedSealConfig(),
   savedSignature: loadSavedSignature(),
+  lastDateValue: getTodayDateValue(),
+  lastDateFormat: DEFAULT_DATE_FORMAT,
   editingStampId: null,
   selectedTool: 'signature' as Tool,
   checkmarkVariant: 'square' as CheckmarkVariant,
@@ -165,6 +187,10 @@ export const useStore = create<AppState>((set) => ({
 
   showSealModal: (x, y, pageIndex) => set({ sealModal: { visible: true, x, y, pageIndex } }),
   hideSealModal: () => set({ sealModal: { visible: false, x: 0, y: 0, pageIndex: 0 } }),
+  showDateModal: (stampId) => set({ dateModal: { visible: true, stampId } }),
+  hideDateModal: () => set({ dateModal: { visible: false, stampId: null } }),
+  setLastDateValue: (value) => set({ lastDateValue: value }),
+  setLastDateFormat: (format) => set({ lastDateFormat: format }),
   saveSealConfig: (config) => {
     persistSealConfig(config)
     set({ savedSealConfig: config })
@@ -212,5 +238,7 @@ export const useStore = create<AppState>((set) => ({
     ...initialState,
     savedSealConfig: state.savedSealConfig,
     savedSignature: state.savedSignature,
+    lastDateValue: getTodayDateValue(),
+    lastDateFormat: DEFAULT_DATE_FORMAT,
   })),
 }))

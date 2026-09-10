@@ -7,6 +7,7 @@ import PDFViewer from '@/components/PDFViewer'
 import Toolbar from '@/components/Toolbar'
 import SignatureModal from '@/components/SignatureModal'
 import SealModal from '@/components/SealModal'
+import DateModal from '@/components/DateModal'
 import { exportPdf, downloadPdf } from '@/lib/pdfExport'
 
 export default function Home() {
@@ -106,6 +107,9 @@ export default function Home() {
 
       {/* Seal Modal */}
       <SealModal />
+
+      {/* Date Modal */}
+      <DateModal />
     </div>
   )
 }

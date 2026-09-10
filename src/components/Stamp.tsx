@@ -9,7 +9,7 @@ interface StampProps {
 }
 
 export default function Stamp({ stamp, scale = 1 }: StampProps) {
-  const { selectedStampId, setSelectedStampId, updateStamp, removeStamp, setEditingStampId, editingStampId } = useStore()
+  const { selectedStampId, setSelectedStampId, updateStamp, removeStamp, setEditingStampId, editingStampId, showDateModal } = useStore()
   const displayScale = Number.isFinite(scale) && scale > 0 ? scale : 1
   const isSelected = selectedStampId === stamp.id
   const isEditing = editingStampId === stamp.id
@@ -96,8 +96,10 @@ export default function Stamp({ stamp, scale = 1 }: StampProps) {
     e.stopPropagation()
     if (stamp.type === 'text') {
       setEditingStampId(stamp.id)
+    } else if (stamp.type === 'date') {
+      showDateModal(stamp.id)
     }
-  }, [stamp.id, stamp.type, setEditingStampId])
+  }, [stamp.id, stamp.type, setEditingStampId, showDateModal])
 
   const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     updateStamp(stamp.id, { content: e.target.value })
@@ -127,6 +129,8 @@ export default function Stamp({ stamp, scale = 1 }: StampProps) {
   const renderContent = () => {
     if (stamp.type === 'signature' || stamp.type === 'seal') {
       return (
+        // Signature and seal images are generated in-browser as data URLs.
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={stamp.content}
           alt={stamp.type === 'seal' ? 'Seal' : 'Signature'}

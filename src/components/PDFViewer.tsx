@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import { useStore } from '@/store/useStore'
 import { getToolCursor } from '@/lib/toolCursor'
 import { PDF_RENDER_SCALE } from '@/lib/pdfConstants'
+import { formatDateValue } from '@/lib/date'
 import Stamp from './Stamp'
 
 const MIN_LOADING_VISIBLE_MS = 600
@@ -19,7 +20,7 @@ function wait(milliseconds: number): Promise<void> {
 }
 
 export default function PDFViewer() {
-  const { pdfFile, pdfPages, setPdfPages, stamps, setSelectedStampId, selectedTool, addStamp, showSignatureModal, showSealModal, setEditingStampId, checkmarkVariant } = useStore()
+  const { pdfFile, pdfPages, setPdfPages, stamps, setSelectedStampId, selectedTool, addStamp, showSignatureModal, showSealModal, setEditingStampId, checkmarkVariant, lastDateValue, lastDateFormat } = useStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const pageImageRefs = useRef<Array<HTMLImageElement | null>>([])
   const [pageScales, setPageScales] = useState<Record<number, number>>({})
@@ -180,21 +181,21 @@ export default function PDFViewer() {
     }
 
     if (selectedTool === 'date') {
-      const today = new Date().toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-      })
+      const id = `date-${Date.now()}`
+      const width = lastDateFormat === 'YYYY年MM月DD日' ? 120 : 100
       addStamp({
-        id: `date-${Date.now()}`,
+        id,
         type: 'date',
-        x: x - 50,
+        x: x - width / 2,
         y: y - 12,
-        width: 100,
+        width,
         height: 24,
-        content: today,
+        content: formatDateValue(lastDateValue, lastDateFormat),
+        dateValue: lastDateValue,
+        dateFormat: lastDateFormat,
         pageIndex,
       })
+      setSelectedStampId(id)
       return
     }
 
@@ -212,7 +213,7 @@ export default function PDFViewer() {
       })
       return
     }
-  }, [selectedTool, setSelectedStampId, addStamp, showSignatureModal, showSealModal, setEditingStampId, checkmarkVariant])
+  }, [selectedTool, setSelectedStampId, addStamp, showSignatureModal, showSealModal, setEditingStampId, checkmarkVariant, lastDateValue, lastDateFormat])
 
   if (pdfPages.length === 0) {
     if (loadError) {
