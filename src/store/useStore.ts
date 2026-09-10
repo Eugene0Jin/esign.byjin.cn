@@ -5,6 +5,12 @@ import {
   persistSealConfig,
   type SealConfig,
 } from '@/lib/seal'
+import {
+  clearPersistedSignature,
+  loadSavedSignature,
+  persistSignature,
+  type SavedSignature,
+} from '@/lib/signature'
 
 export interface Stamp {
   id: string
@@ -56,6 +62,7 @@ interface AppState {
   signatureModal: SignatureModal
   sealModal: SealModal
   savedSealConfig: SealConfig | null
+  savedSignature: SavedSignature | null
   editingStampId: string | null
   selectedTool: Tool
   checkmarkVariant: CheckmarkVariant
@@ -74,6 +81,8 @@ interface AppState {
   hideSealModal: () => void
   saveSealConfig: (config: SealConfig) => void
   clearSavedSealConfig: () => void
+  saveSignature: (signature: SavedSignature) => void
+  clearSavedSignature: () => void
   setEditingStampId: (id: string | null) => void
   setSelectedTool: (tool: Tool) => void
   setCheckmarkVariant: (variant: CheckmarkVariant) => void
@@ -93,6 +102,7 @@ const initialState = {
   signatureModal: { visible: false, x: 0, y: 0, pageIndex: 0 },
   sealModal: { visible: false, x: 0, y: 0, pageIndex: 0 },
   savedSealConfig: loadSavedSealConfig(),
+  savedSignature: loadSavedSignature(),
   editingStampId: null,
   selectedTool: 'signature' as Tool,
   checkmarkVariant: 'square' as CheckmarkVariant,
@@ -163,6 +173,14 @@ export const useStore = create<AppState>((set) => ({
     clearPersistedSealConfig()
     set({ savedSealConfig: null })
   },
+  saveSignature: (signature) => {
+    persistSignature(signature)
+    set({ savedSignature: signature })
+  },
+  clearSavedSignature: () => {
+    clearPersistedSignature()
+    set({ savedSignature: null })
+  },
 
   setEditingStampId: (id) => set({ editingStampId: id }),
 
@@ -193,5 +211,6 @@ export const useStore = create<AppState>((set) => ({
   reset: () => set((state) => ({
     ...initialState,
     savedSealConfig: state.savedSealConfig,
+    savedSignature: state.savedSignature,
   })),
 }))

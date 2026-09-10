@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
 import { useStore } from '@/store/useStore'
+import type { SignatureMode } from '@/lib/signature'
 
 const SIGNATURE_FONTS = [
   { name: 'Dancing Script', family: "'Dancing Script', cursive" },
@@ -12,13 +13,21 @@ const SIGNATURE_FONTS = [
   { name: 'Sacramento', family: "'Sacramento', cursive" },
 ]
 
-type Tab = 'draw' | 'type' | 'fonts'
+type Tab = SignatureMode
 
 export default function SignatureModal() {
-  const { signatureModal, hideSignatureModal, addStamp } = useStore()
+  const {
+    signatureModal,
+    hideSignatureModal,
+    addStamp,
+    savedSignature,
+    saveSignature,
+    clearSavedSignature,
+  } = useStore()
   const [activeTab, setActiveTab] = useState<Tab>('draw')
   const [typedName, setTypedName] = useState('')
   const [selectedFont, setSelectedFont] = useState(SIGNATURE_FONTS[0])
+  const [restoredContent, setRestoredContent] = useState<string | null>(null)
   const sigCanvasRef = useRef<SignatureCanvas>(null)
 
   useEffect(() => {
@@ -29,9 +38,51 @@ export default function SignatureModal() {
     document.head.appendChild(link)
   }, [])
 
+  useEffect(() => {
+    if (!signatureModal.visible) return
+
+    let canvasFrame = 0
+    const stateFrame = requestAnimationFrame(() => {
+      const restoredFont = SIGNATURE_FONTS.find((font) => font.name === savedSignature?.fontName)
+        ?? SIGNATURE_FONTS[0]
+
+      setActiveTab(savedSignature?.mode ?? 'draw')
+      setTypedName(savedSignature?.typedName ?? '')
+      setSelectedFont(restoredFont)
+      setRestoredContent(savedSignature?.content ?? null)
+
+      canvasFrame = requestAnimationFrame(() => {
+        sigCanvasRef.current?.clear()
+        if (savedSignature?.mode === 'draw') {
+          sigCanvasRef.current?.fromDataURL(savedSignature.content)
+        }
+      })
+    })
+
+    return () => {
+      cancelAnimationFrame(stateFrame)
+      cancelAnimationFrame(canvasFrame)
+    }
+  }, [savedSignature, signatureModal.visible])
+
   const handleClear = useCallback(() => {
     sigCanvasRef.current?.clear()
+    setRestoredContent(null)
   }, [])
+
+  const handleTabChange = useCallback((tab: Tab) => {
+    setActiveTab(tab)
+    setRestoredContent(null)
+  }, [])
+
+  const handleClearSavedSignature = useCallback(() => {
+    clearSavedSignature()
+    setActiveTab('draw')
+    setTypedName('')
+    setSelectedFont(SIGNATURE_FONTS[0])
+    setRestoredContent(null)
+    requestAnimationFrame(() => sigCanvasRef.current?.clear())
+  }, [clearSavedSignature])
 
   const createSignatureFromCanvas = useCallback(() => {
     if (!sigCanvasRef.current?.isEmpty()) {
@@ -55,13 +106,13 @@ export default function SignatureModal() {
   }, [])
 
   const handleSave = useCallback(() => {
-    let dataUrl: string | null = null
+    let dataUrl: string | null = restoredContent
 
-    if (activeTab === 'draw') {
+    if (!dataUrl && activeTab === 'draw') {
       dataUrl = createSignatureFromCanvas()
-    } else if (activeTab === 'type' && typedName.trim()) {
+    } else if (!dataUrl && activeTab === 'type' && typedName.trim()) {
       dataUrl = createSignatureFromText(typedName, selectedFont.family)
-    } else if (activeTab === 'fonts' && typedName.trim()) {
+    } else if (!dataUrl && activeTab === 'fonts' && typedName.trim()) {
       dataUrl = createSignatureFromText(typedName, selectedFont.family)
     }
 
@@ -77,12 +128,16 @@ export default function SignatureModal() {
         content: dataUrl,
         pageIndex: signatureModal.pageIndex,
       })
+      saveSignature({
+        mode: activeTab,
+        content: dataUrl,
+        typedName,
+        fontName: selectedFont.name,
+      })
     }
 
     hideSignatureModal()
-    setTypedName('')
-    sigCanvasRef.current?.clear()
-  }, [activeTab, typedName, selectedFont.family, createSignatureFromCanvas, createSignatureFromText, addStamp, signatureModal, hideSignatureModal])
+  }, [activeTab, typedName, selectedFont, restoredContent, createSignatureFromCanvas, createSignatureFromText, addStamp, saveSignature, signatureModal, hideSignatureModal])
 
   if (!signatureModal.visible) return null
 
@@ -91,7 +146,7 @@ export default function SignatureModal() {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
         <div className="flex border-b">
           <button
-            onClick={() => setActiveTab('draw')}
+            onClick={() => handleTabChange('draw')}
             className={`flex-1 py-3 text-sm font-medium ${
               activeTab === 'draw' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'
             }`}
@@ -99,7 +154,7 @@ export default function SignatureModal() {
             Draw
           </button>
           <button
-            onClick={() => setActiveTab('type')}
+            onClick={() => handleTabChange('type')}
             className={`flex-1 py-3 text-sm font-medium ${
               activeTab === 'type' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'
             }`}
@@ -107,7 +162,7 @@ export default function SignatureModal() {
             Type
           </button>
           <button
-            onClick={() => setActiveTab('fonts')}
+            onClick={() => handleTabChange('fonts')}
             className={`flex-1 py-3 text-sm font-medium ${
               activeTab === 'fonts' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'
             }`}
@@ -127,6 +182,7 @@ export default function SignatureModal() {
                     style: { width: '100%', height: '128px' },
                   }}
                   penColor="black"
+                  onEnd={() => setRestoredContent(null)}
                 />
               </div>
               <button
@@ -143,7 +199,10 @@ export default function SignatureModal() {
               <input
                 type="text"
                 value={typedName}
-                onChange={(e) => setTypedName(e.target.value)}
+                onChange={(e) => {
+                  setTypedName(e.target.value)
+                  setRestoredContent(null)
+                }}
                 placeholder="Type your name"
                 className="w-full border rounded-lg px-4 py-3 mb-3 outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -161,7 +220,10 @@ export default function SignatureModal() {
               <input
                 type="text"
                 value={typedName}
-                onChange={(e) => setTypedName(e.target.value)}
+                onChange={(e) => {
+                  setTypedName(e.target.value)
+                  setRestoredContent(null)
+                }}
                 placeholder="Type your name"
                 className="w-full border rounded-lg px-4 py-3 mb-3 outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -169,7 +231,10 @@ export default function SignatureModal() {
                 {SIGNATURE_FONTS.map((font) => (
                   <button
                     key={font.name}
-                    onClick={() => setSelectedFont(font)}
+                  onClick={() => {
+                    setSelectedFont(font)
+                    setRestoredContent(null)
+                  }}
                     className={`w-full p-3 text-left rounded-lg border transition-colors ${
                       selectedFont.name === font.name
                         ? 'border-blue-500 bg-blue-50'
@@ -186,16 +251,27 @@ export default function SignatureModal() {
           )}
         </div>
 
-        <div className="flex gap-3 p-4 border-t">
+        <div className="flex flex-col-reverse gap-3 border-t p-4 sm:flex-row sm:items-center">
+          <div className="sm:mr-auto">
+            {savedSignature && (
+              <button
+                type="button"
+                onClick={handleClearSavedSignature}
+                className="w-full rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 sm:w-auto"
+              >
+                Clear
+              </button>
+            )}
+          </div>
           <button
             onClick={hideSignatureModal}
-            className="flex-1 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            className="rounded-lg px-5 py-2 text-gray-600 transition-colors hover:bg-gray-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="rounded-lg bg-blue-600 px-5 py-2 text-white transition-colors hover:bg-blue-700"
           >
             Add Signature
           </button>
