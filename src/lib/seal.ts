@@ -58,6 +58,8 @@ export const DEFAULT_SEAL_CONFIG: SealConfig = {
 const SEAL_STORAGE_KEY = 'free-esign.saved-seal.v1'
 const SEAL_STORAGE_VERSION = 1
 const SVG_FONT_STACK = "Arial, 'Microsoft YaHei', 'PingFang SC', sans-serif"
+const ROUND_SEAL_FONT_STACK = "'SimSun', 'Songti SC', 'STSong', serif"
+const ROUND_SERIAL_FONT_STACK = "Arial, 'SimSun', 'Songti SC', serif"
 
 const sealTemplates = new Set<SealTemplate>(SEAL_TEMPLATE_OPTIONS.map((option) => option.id))
 const sealSizes = new Set<SealSize>(SEAL_SIZE_OPTIONS.map((option) => option.id))
@@ -203,8 +205,8 @@ const getNameFontSize = (value: string, oval: boolean) => {
     (total, character) => total + (/^[\x00-\x7F]$/.test(character) ? 0.6 : 1),
     0,
   ), 1)
-  const availableArcWidth = 805 - Math.max(length - 1, 0) * 2
-  return Math.max(22, Math.min(64, availableArcWidth / weightedLength))
+  const availableArcWidth = 790 - Math.max(length - 1, 0) * 3
+  return Math.max(24, Math.min(60, availableArcWidth / weightedLength))
 }
 
 const hashString = (value: string) => Array.from(value).reduce(
@@ -322,29 +324,37 @@ export function createSealSvg(config: SealConfig): string {
     `.trim()
   }
 
-  const nameRadius = 210
-  const namePathY = 300 + Math.sin(25 * Math.PI / 180) * nameRadius
-  const namePathOffset = Math.cos(25 * Math.PI / 180) * nameRadius
+  // Real-world Chinese company seals use a thin outer rim, Song-style type,
+  // a broad upper arc, and a separate curved serial along the lower rim.
+  const nameRadius = 205
+  const namePathY = 300 + Math.sin(35 * Math.PI / 180) * nameRadius
+  const namePathOffset = Math.cos(35 * Math.PI / 180) * nameRadius
   const namePathStart = 300 - namePathOffset
   const namePathEnd = 300 + namePathOffset
+  const serialRadius = 248
+  const serialPathY = 300 + Math.sin(40 * Math.PI / 180) * serialRadius
+  const serialPathOffset = Math.cos(40 * Math.PI / 180) * serialRadius
+  const serialPathStart = 300 - serialPathOffset
+  const serialPathEnd = 300 + serialPathOffset
   const star = normalized.template === 'classic-round'
-    ? `<polygon points="${createStarPoints(300, 300, 96)}" fill="${color}"/>`
+    ? `<polygon points="${createStarPoints(300, 315, 95)}" fill="${color}"/>`
     : ''
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
       <defs>
         <path id="seal-name-path" d="M ${namePathStart} ${namePathY} A ${nameRadius} ${nameRadius} 0 1 1 ${namePathEnd} ${namePathY}"/>
+        <path id="seal-serial-path" d="M ${serialPathStart} ${serialPathY} A ${serialRadius} ${serialRadius} 0 0 0 ${serialPathEnd} ${serialPathY}"/>
         ${distress.definitions}
       </defs>
       <g ${distress.attributes}>
-        <circle cx="300" cy="300" r="270" fill="none" stroke="${color}" stroke-width="14"/>
-        <text ${commonText} font-size="${nameFontSize}" font-weight="500" letter-spacing="2">
+        <circle cx="300" cy="300" r="280" fill="none" stroke="${color}" stroke-width="10"/>
+        <text font-family="${ROUND_SEAL_FONT_STACK}" fill="${color}" text-anchor="middle" font-size="${nameFontSize}" font-weight="400" letter-spacing="3">
           <textPath href="#seal-name-path" startOffset="50%" text-anchor="middle">${organizationName}</textPath>
         </text>
         ${star}
-        ${centerText ? `<text x="300" y="${normalized.template === 'plain-round' ? 325 : 420}" ${commonText} font-size="44" font-weight="600">${centerText}</text>` : ''}
-        ${serialText ? `<text x="300" y="505" ${commonText} font-size="32" font-weight="500" letter-spacing="6">${serialText}</text>` : ''}
+        ${centerText ? `<text x="300" y="${normalized.template === 'plain-round' ? 320 : 430}" font-family="${ROUND_SEAL_FONT_STACK}" fill="${color}" text-anchor="middle" font-size="44" font-weight="400" letter-spacing="2">${centerText}</text>` : ''}
+        ${serialText ? `<text font-family="${ROUND_SERIAL_FONT_STACK}" fill="${color}" text-anchor="middle" font-size="28" font-weight="400" letter-spacing="5"><textPath href="#seal-serial-path" startOffset="50%" text-anchor="middle">${serialText}</textPath></text>` : ''}
       </g>
     </svg>
   `.trim()
