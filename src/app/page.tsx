@@ -88,7 +88,7 @@ export default function Home() {
   }, [cancelSealUnlock, reset])
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="flex min-h-screen flex-col bg-gray-100">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -140,7 +140,7 @@ export default function Home() {
       <Toolbar sealEnabled={sealToolUnlocked} />
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
         {!pdfFile ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh]">
             <PDFUploader />
@@ -154,6 +154,21 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {!pdfFile && (
+        <footer>
+          <div className="mx-auto max-w-5xl px-4 pb-4 text-center">
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs tracking-wide text-gray-400 transition-colors hover:text-gray-600 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              湘ICP备2026039387号
+            </a>
+          </div>
+        </footer>
+      )}
 
       {/* Signature Modal */}
       <SignatureModal />
