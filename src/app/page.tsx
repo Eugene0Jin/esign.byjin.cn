@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useStore } from '@/store/useStore'
 import PDFUploader from '@/components/PDFUploader'
 import PDFViewer from '@/components/PDFViewer'
@@ -12,6 +12,34 @@ import { exportPdf, downloadPdf } from '@/lib/pdfExport'
 
 export default function Home() {
   const { pdfFile, pdfPages, stamps, reset, undo, redo } = useStore()
+  const [sealToolUnlocked, setSealToolUnlocked] = useState(false)
+  const [isHoldingLogo, setIsHoldingLogo] = useState(false)
+  const sealUnlockTimerRef = useRef<number | null>(null)
+
+  const cancelSealUnlock = useCallback(() => {
+    if (sealUnlockTimerRef.current !== null) {
+      window.clearTimeout(sealUnlockTimerRef.current)
+      sealUnlockTimerRef.current = null
+    }
+    setIsHoldingLogo(false)
+  }, [])
+
+  const handleLogoPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!pdfFile || sealToolUnlocked || (event.pointerType === 'mouse' && event.button !== 0)) return
+
+    event.preventDefault()
+    cancelSealUnlock()
+    setIsHoldingLogo(true)
+    sealUnlockTimerRef.current = window.setTimeout(() => {
+      sealUnlockTimerRef.current = null
+      setIsHoldingLogo(false)
+      setSealToolUnlocked(true)
+    }, 3000)
+  }, [cancelSealUnlock, pdfFile, sealToolUnlocked])
+
+  useEffect(() => {
+    return cancelSealUnlock
+  }, [cancelSealUnlock])
 
   // Warn before closing if there are unsaved changes
   useEffect(() => {
@@ -54,15 +82,40 @@ export default function Home() {
   }, [pdfFile, stamps, pdfPages])
 
   const handleReset = useCallback(() => {
+    cancelSealUnlock()
+    setSealToolUnlocked(false)
     reset()
-  }, [reset])
+  }, [cancelSealUnlock, reset])
 
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-900">Free eSign</h1>
+          <h1 className="text-xl font-semibold text-gray-900">
+            <button
+              type="button"
+              onPointerDown={handleLogoPointerDown}
+              onPointerUp={cancelSealUnlock}
+              onPointerLeave={cancelSealUnlock}
+              onPointerCancel={cancelSealUnlock}
+              onContextMenu={(event) => {
+                if (pdfFile && !sealToolUnlocked) event.preventDefault()
+              }}
+              className="relative select-none rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Free eSign"
+            >
+              Free eSign
+              <span
+                className={`absolute -bottom-1 left-0 h-0.5 bg-blue-600 transition-[width] ease-linear ${
+                  isHoldingLogo ? 'w-full' : 'w-0'
+                }`}
+                style={{ transitionDuration: isHoldingLogo ? '3000ms' : '150ms' }}
+                aria-hidden="true"
+              />
+            </button>
+          </h1>
           {pdfFile && (
             <div className="flex gap-3">
               <button
@@ -84,7 +137,7 @@ export default function Home() {
       </header>
 
       {/* Toolbar */}
-      <Toolbar />
+      <Toolbar sealEnabled={sealToolUnlocked} />
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 py-8">

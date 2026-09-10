@@ -67,7 +67,11 @@ const checkmarkVariants: { id: CheckmarkVariant; label: string; symbol: string }
   { id: 'check', label: 'Check', symbol: '✓' },
 ]
 
-export default function Toolbar() {
+interface ToolbarProps {
+  sealEnabled?: boolean
+}
+
+export default function Toolbar({ sealEnabled = false }: ToolbarProps) {
   const { selectedTool, setSelectedTool, pdfFile, checkmarkVariant, setCheckmarkVariant } = useStore()
 
   if (!pdfFile) return null
@@ -93,7 +97,7 @@ export default function Toolbar() {
         </div>
       )}
       <div className="max-w-[calc(100vw-2rem)] overflow-x-auto bg-white rounded-full shadow-lg border border-gray-200 px-2 py-2 flex items-center gap-1">
-        {tools.map((tool) => (
+        {tools.filter((tool) => sealEnabled || tool.id !== 'seal').map((tool) => (
           <button
             key={tool.id}
             onClick={() => setSelectedTool(tool.id)}
