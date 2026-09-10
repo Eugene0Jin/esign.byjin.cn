@@ -16,6 +16,11 @@ const toolCursorSvgs: Record<Exclude<Tool, 'select' | 'checkmark'>, string> = {
   signature: cursorFrame(`
     <path d="M17.23 7.23l3.54 3.54M18.73 5.73a2.5 2.5 0 013.54 3.54L8.5 23.04H5v-3.57L18.73 5.73z"/>
   `),
+  seal: cursorFrame(`
+    <circle cx="14" cy="14" r="8"/>
+    <circle cx="14" cy="14" r="5.5" stroke-width="1.5"/>
+    <path d="M14 10.5l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3 1-2z" stroke-width="1.5"/>
+  `),
   text: cursorFrame(`
     <path d="M7 8h14M14 8v13M10.5 21h7"/>
   `),
@@ -36,6 +41,7 @@ const toCssCursor = (svg: string) => {
 
 const toolCursors = {
   signature: toCssCursor(toolCursorSvgs.signature),
+  seal: toCssCursor(toolCursorSvgs.seal),
   text: toCssCursor(toolCursorSvgs.text),
   date: toCssCursor(toolCursorSvgs.date),
   checkmark: {

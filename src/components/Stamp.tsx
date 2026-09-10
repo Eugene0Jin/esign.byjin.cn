@@ -57,6 +57,19 @@ export default function Stamp({ stamp }: StampProps) {
       } else if (isResizing) {
         const dx = e.clientX - resizeStart.current.mouseX
         const dy = e.clientY - resizeStart.current.mouseY
+
+        if (stamp.type === 'seal') {
+          const { width, height } = resizeStart.current
+          const scaleDelta = (dx * width + dy * height) / (width * width + height * height)
+          const minimumScale = Math.max(50 / width, 20 / height)
+          const nextScale = Math.max(minimumScale, 1 + scaleDelta)
+          updateStamp(stamp.id, {
+            width: width * nextScale,
+            height: height * nextScale,
+          })
+          return
+        }
+
         const newWidth = Math.max(50, resizeStart.current.width + dx)
         const newHeight = Math.max(20, resizeStart.current.height + dy)
         // No max size limit - user can resize as large as needed
@@ -75,7 +88,7 @@ export default function Stamp({ stamp }: StampProps) {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, isResizing, stamp.id, updateStamp])
+  }, [isDragging, isResizing, stamp.id, stamp.type, updateStamp])
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -110,11 +123,11 @@ export default function Stamp({ stamp }: StampProps) {
   }, [isEditing])
 
   const renderContent = () => {
-    if (stamp.type === 'signature') {
+    if (stamp.type === 'signature' || stamp.type === 'seal') {
       return (
         <img
           src={stamp.content}
-          alt="Signature"
+          alt={stamp.type === 'seal' ? 'Seal' : 'Signature'}
           className="w-full h-full object-contain pointer-events-none"
           draggable={false}
         />

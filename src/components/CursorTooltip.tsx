@@ -4,13 +4,12 @@ import { useEffect, useState } from 'react'
 import { useStore } from '@/store/useStore'
 
 export default function CursorTooltip() {
-  const { pdfPages, contextMenu, signatureModal } = useStore()
+  const { pdfPages, contextMenu, signatureModal, sealModal } = useStore()
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (pdfPages.length === 0 || contextMenu.visible || signatureModal.visible) {
-      setVisible(false)
+    if (pdfPages.length === 0 || contextMenu.visible || signatureModal.visible || sealModal.visible) {
       return
     }
 
@@ -28,9 +27,9 @@ export default function CursorTooltip() {
 
     window.addEventListener('mousemove', handleMouseMove)
     return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [pdfPages.length, contextMenu.visible, signatureModal.visible])
+  }, [pdfPages.length, contextMenu.visible, signatureModal.visible, sealModal.visible])
 
-  if (!visible) return null
+  if (!visible || pdfPages.length === 0 || contextMenu.visible || signatureModal.visible || sealModal.visible) return null
 
   return (
     <div

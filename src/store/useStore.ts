@@ -1,8 +1,14 @@
 import { create } from 'zustand'
+import {
+  clearPersistedSealConfig,
+  loadSavedSealConfig,
+  persistSealConfig,
+  type SealConfig,
+} from '@/lib/seal'
 
 export interface Stamp {
   id: string
-  type: 'signature' | 'text' | 'date' | 'checkmark'
+  type: 'signature' | 'seal' | 'text' | 'date' | 'checkmark'
   x: number
   y: number
   width: number
@@ -28,7 +34,14 @@ interface SignatureModal {
   pageIndex: number
 }
 
-export type Tool = 'select' | 'signature' | 'text' | 'date' | 'checkmark'
+interface SealModal {
+  visible: boolean
+  x: number
+  y: number
+  pageIndex: number
+}
+
+export type Tool = 'select' | 'signature' | 'seal' | 'text' | 'date' | 'checkmark'
 export type CheckmarkVariant = 'square' | 'check'
 
 interface AppState {
@@ -40,6 +53,8 @@ interface AppState {
   selectedStampId: string | null
   contextMenu: ContextMenu
   signatureModal: SignatureModal
+  sealModal: SealModal
+  savedSealConfig: SealConfig | null
   editingStampId: string | null
   selectedTool: Tool
   checkmarkVariant: CheckmarkVariant
@@ -54,6 +69,10 @@ interface AppState {
   hideContextMenu: () => void
   showSignatureModal: (x: number, y: number, pageIndex: number) => void
   hideSignatureModal: () => void
+  showSealModal: (x: number, y: number, pageIndex: number) => void
+  hideSealModal: () => void
+  saveSealConfig: (config: SealConfig) => void
+  clearSavedSealConfig: () => void
   setEditingStampId: (id: string | null) => void
   setSelectedTool: (tool: Tool) => void
   setCheckmarkVariant: (variant: CheckmarkVariant) => void
@@ -71,6 +90,8 @@ const initialState = {
   selectedStampId: null,
   contextMenu: { visible: false, x: 0, y: 0, pageIndex: 0, viewportX: 0, viewportY: 0 },
   signatureModal: { visible: false, x: 0, y: 0, pageIndex: 0 },
+  sealModal: { visible: false, x: 0, y: 0, pageIndex: 0 },
+  savedSealConfig: loadSavedSealConfig(),
   editingStampId: null,
   selectedTool: 'signature' as Tool,
   checkmarkVariant: 'square' as CheckmarkVariant,
@@ -131,6 +152,17 @@ export const useStore = create<AppState>((set) => ({
   showSignatureModal: (x, y, pageIndex) => set({ signatureModal: { visible: true, x, y, pageIndex } }),
   hideSignatureModal: () => set({ signatureModal: { visible: false, x: 0, y: 0, pageIndex: 0 } }),
 
+  showSealModal: (x, y, pageIndex) => set({ sealModal: { visible: true, x, y, pageIndex } }),
+  hideSealModal: () => set({ sealModal: { visible: false, x: 0, y: 0, pageIndex: 0 } }),
+  saveSealConfig: (config) => {
+    persistSealConfig(config)
+    set({ savedSealConfig: config })
+  },
+  clearSavedSealConfig: () => {
+    clearPersistedSealConfig()
+    set({ savedSealConfig: null })
+  },
+
   setEditingStampId: (id) => set({ editingStampId: id }),
 
   setSelectedTool: (tool) => set({ selectedTool: tool }),
@@ -157,5 +189,8 @@ export const useStore = create<AppState>((set) => ({
     }
   }),
 
-  reset: () => set(initialState),
+  reset: () => set((state) => ({
+    ...initialState,
+    savedSealConfig: state.savedSealConfig,
+  })),
 }))

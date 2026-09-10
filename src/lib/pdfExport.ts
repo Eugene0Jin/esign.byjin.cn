@@ -1,5 +1,5 @@
 import { PDFDocument, rgb } from 'pdf-lib'
-import { Stamp } from '@/store/useStore'
+import type { Stamp } from '@/store/useStore'
 
 export async function exportPdf(
   originalFile: File,
@@ -9,10 +9,6 @@ export async function exportPdf(
   const originalBytes = await originalFile.arrayBuffer()
   const pdfDoc = await PDFDocument.load(originalBytes)
   const pages = pdfDoc.getPages()
-
-  // Calculate the scale factor between rendered image and actual PDF
-  // The PDF viewer renders at scale 1.5
-  const scale = 1.5
 
   for (const stamp of stamps) {
     const page = pages[stamp.pageIndex]
@@ -39,8 +35,8 @@ export async function exportPdf(
     const pdfWidth = stamp.width * scaleX
     const pdfHeight = stamp.height * scaleY
 
-    if (stamp.type === 'signature') {
-      // Embed the signature image
+    if (stamp.type === 'signature' || stamp.type === 'seal') {
+      // Embed signatures and seals as transparent PNG images.
       const imageData = stamp.content.split(',')[1]
       const imageBytes = Uint8Array.from(atob(imageData), (c) => c.charCodeAt(0))
       const pngImage = await pdfDoc.embedPng(imageBytes)

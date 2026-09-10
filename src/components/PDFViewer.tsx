@@ -3,10 +3,11 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useStore } from '@/store/useStore'
 import { getToolCursor } from '@/lib/toolCursor'
+import { PDF_RENDER_SCALE } from '@/lib/pdfConstants'
 import Stamp from './Stamp'
 
 export default function PDFViewer() {
-  const { pdfFile, pdfPages, setPdfPages, stamps, setSelectedStampId, selectedTool, addStamp, showSignatureModal, setEditingStampId, checkmarkVariant } = useStore()
+  const { pdfFile, pdfPages, setPdfPages, stamps, setSelectedStampId, selectedTool, addStamp, showSignatureModal, showSealModal, setEditingStampId, checkmarkVariant } = useStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const pageCursor = getToolCursor(selectedTool, checkmarkVariant)
 
@@ -23,8 +24,7 @@ export default function PDFViewer() {
 
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i)
-        const scale = 1.5
-        const viewport = page.getViewport({ scale })
+        const viewport = page.getViewport({ scale: PDF_RENDER_SCALE })
 
         const canvas = document.createElement('canvas')
         const context = canvas.getContext('2d')!
@@ -57,6 +57,11 @@ export default function PDFViewer() {
 
     if (selectedTool === 'signature') {
       showSignatureModal(x, y, pageIndex)
+      return
+    }
+
+    if (selectedTool === 'seal') {
+      showSealModal(x, y, pageIndex)
       return
     }
 
@@ -110,7 +115,7 @@ export default function PDFViewer() {
       })
       return
     }
-  }, [selectedTool, setSelectedStampId, addStamp, showSignatureModal, setEditingStampId, checkmarkVariant])
+  }, [selectedTool, setSelectedStampId, addStamp, showSignatureModal, showSealModal, setEditingStampId, checkmarkVariant])
 
   if (pdfPages.length === 0) return null
 

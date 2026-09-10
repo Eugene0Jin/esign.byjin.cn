@@ -23,6 +23,17 @@ const tools: { id: Tool; label: string; icon: ReactNode }[] = [
     ),
   },
   {
+    id: 'seal',
+    label: 'Seal',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" strokeWidth={2} />
+        <circle cx="12" cy="12" r="6.5" strokeWidth={1.5} />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8.4l1 2 2.2.3-1.6 1.6.4 2.2-2-1-2 1 .4-2.2-1.6-1.6 2.2-.3 1-2z" />
+      </svg>
+    ),
+  },
+  {
     id: 'text',
     label: 'Text',
     icon: (
@@ -81,7 +92,7 @@ export default function Toolbar() {
           ))}
         </div>
       )}
-      <div className="bg-white rounded-full shadow-lg border border-gray-200 px-2 py-2 flex items-center gap-1">
+      <div className="max-w-[calc(100vw-2rem)] overflow-x-auto bg-white rounded-full shadow-lg border border-gray-200 px-2 py-2 flex items-center gap-1">
         {tools.map((tool) => (
           <button
             key={tool.id}

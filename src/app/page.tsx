@@ -6,6 +6,7 @@ import PDFUploader from '@/components/PDFUploader'
 import PDFViewer from '@/components/PDFViewer'
 import Toolbar from '@/components/Toolbar'
 import SignatureModal from '@/components/SignatureModal'
+import SealModal from '@/components/SealModal'
 import { exportPdf, downloadPdf } from '@/lib/pdfExport'
 
 export default function Home() {
@@ -102,6 +103,9 @@ export default function Home() {
 
       {/* Signature Modal */}
       <SignatureModal />
+
+      {/* Seal Modal */}
+      <SealModal />
     </div>
   )
 }
