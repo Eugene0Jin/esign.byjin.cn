@@ -2,11 +2,11 @@
 
 **Evidence**
 
-- Source visual truth: `C:\Users\yusio\AppData\Local\Temp\codex-clipboard-53578ed9-b224-4475-8382-2bc695575c6b.png`
-- Source pixels: 1560 × 550.
+- Source visual truth: `C:\Users\yusio\AppData\Local\Temp\codex-clipboard-6ae0e96c-1741-48ad-8e96-cf9878c488a6.png`
+- Source pixels: 1133 × 573.
 - Implementation: `http://localhost:3001/`, captured in the Codex in-app Browser. The browser capture is retained inline in the task; the in-app Browser did not expose a filesystem path for the PNG.
 - Implementation capture: 1074 × 1018 pixels from a 1074 × 1032 CSS-pixel viewport at device pixel ratio 1.
-- State: Seal selected; modal open; Double ring template; 42 × 42 mm; red; reference-matching organization, center, and serial text.
+- State: Seal selected; modal open; Classic round template; 42 × 42 mm; red; organization prefilled with `湖南省xx信息技术有限公司`; center and bottom fields empty with the reference Chinese prompts visible.
 
 **Full-view comparison evidence**
 
@@ -18,11 +18,14 @@
 
 - Template cards visibly distinguish classic round, double ring, and oval geometry and update with the current text and color.
 - The large preview preserves transparent background, curved organization text, center star/text, bottom serial, ring count, color, and selected physical dimensions.
+- The default modal state now matches the newly annotated reference: the first template is selected, the organization name is prefilled, and `印章横排文字` / `印章下弦文` appear as empty-field prompts with 0 / 10 and 0 / 20 counters.
 - At a 375 CSS-pixel content width, the editor stacks the preview below the form, keeps all three template choices usable, and does not clip modal controls.
 
 **Interaction evidence**
 
 - Verified template, compatible size, and color switching with immediate preview updates.
+- Verified the fresh default configuration is Classic round, 42 × 42 mm, red, with the specified organization name and empty optional values.
+- Verified all three reference prompt strings are present through browser accessibility locators.
 - Verified XML-sensitive input (`&`, `<`, `>`) renders as literal text rather than markup.
 - Verified the required-name state disables Add Seal.
 - Verified Cancel discards draft edits and reopening restores the last saved template, size, color, and text.
@@ -37,6 +40,7 @@
 **Comparison history**
 
 - Pass 1: No P0/P1/P2 issues found. The modal adaptation and blue selected-state styling are intentional host-product constraints, not design drift.
+- Pass 2: Updated the annotated defaults and Chinese field prompts, then confirmed the matching state in the in-app browser.
 
 **Implementation checklist**
 

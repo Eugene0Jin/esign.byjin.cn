@@ -1,6 +1,6 @@
 import { PDF_RENDER_SCALE } from '@/lib/pdfConstants'
 
-export type SealTemplate = 'classic-round' | 'double-ring' | 'oval'
+export type SealTemplate = 'classic-round' | 'plain-round' | 'oval'
 export type SealColor = 'red' | 'blue' | 'green' | 'black'
 export type SealSize = '38x38' | '40x40' | '42x42' | '45x30' | '50x35'
 
@@ -23,7 +23,7 @@ interface SealSizeOption {
 
 export const SEAL_TEMPLATE_OPTIONS: ReadonlyArray<{ id: SealTemplate; label: string }> = [
   { id: 'classic-round', label: 'Classic round' },
-  { id: 'double-ring', label: 'Double ring' },
+  { id: 'plain-round', label: 'Plain round' },
   { id: 'oval', label: 'Oval' },
 ]
 
@@ -43,9 +43,9 @@ export const SEAL_COLOR_OPTIONS: ReadonlyArray<{ id: SealColor; label: string; v
 ]
 
 export const DEFAULT_SEAL_CONFIG: SealConfig = {
-  template: 'double-ring',
+  template: 'classic-round',
   size: '42x42',
-  organizationName: '',
+  organizationName: '湖南省xx信息技术有限公司',
   centerText: '',
   serialText: '',
   color: 'red',
@@ -123,8 +123,20 @@ export function loadSavedSealConfig(): SealConfig | null {
     const rawValue = window.localStorage.getItem(SEAL_STORAGE_KEY)
     if (!rawValue) return null
     const saved = JSON.parse(rawValue) as { version?: number; config?: unknown }
-    if (saved.version !== SEAL_STORAGE_VERSION || !isSealConfig(saved.config)) return null
-    return normalizeSealConfig(saved.config)
+    if (saved.version !== SEAL_STORAGE_VERSION) return null
+
+    // Earlier builds used "double-ring" for the second option. Preserve the
+    // user's saved text, size, and color while mapping it to the corrected
+    // single-ring, no-star template.
+    const storedConfig = saved.config && typeof saved.config === 'object'
+      ? saved.config as Record<string, unknown>
+      : null
+    const migratedConfig = storedConfig?.template === 'double-ring'
+      ? { ...storedConfig, template: 'plain-round' }
+      : saved.config
+
+    if (!isSealConfig(migratedConfig)) return null
+    return normalizeSealConfig(migratedConfig)
   } catch {
     return null
   }
@@ -166,9 +178,16 @@ const createStarPoints = (centerX: number, centerY: number, outerRadius: number)
 }
 
 const getNameFontSize = (value: string, oval: boolean) => {
-  const length = Math.max(Array.from(value).length, 1)
-  const availableWidth = oval ? 590 : 570
-  return Math.max(28, Math.min(52, availableWidth / (length + 1.5)))
+  const characters = Array.from(value)
+  const length = Math.max(characters.length, 1)
+  if (oval) return Math.max(28, Math.min(52, 590 / (length + 1.5)))
+
+  const weightedLength = Math.max(characters.reduce(
+    (total, character) => total + (/^[\x00-\x7F]$/.test(character) ? 0.6 : 1),
+    0,
+  ), 1)
+  const availableArcWidth = 805 - Math.max(length - 1, 0) * 2
+  return Math.max(22, Math.min(64, availableArcWidth / weightedLength))
 }
 
 export function createSealSvg(config: SealConfig): string {
@@ -206,26 +225,26 @@ export function createSealSvg(config: SealConfig): string {
     `.trim()
   }
 
-  const innerRing = normalized.template === 'double-ring'
-    ? `<circle cx="300" cy="300" r="226" fill="none" stroke="${color}" stroke-width="5"/>`
+  const nameRadius = 210
+  const namePathY = 300 + Math.sin(25 * Math.PI / 180) * nameRadius
+  const namePathOffset = Math.cos(25 * Math.PI / 180) * nameRadius
+  const namePathStart = 300 - namePathOffset
+  const namePathEnd = 300 + namePathOffset
+  const star = normalized.template === 'classic-round'
+    ? `<polygon points="${createStarPoints(300, 300, 96)}" fill="${color}"/>`
     : ''
-  const nameRadius = normalized.template === 'double-ring' ? 205 : 220
-  const namePathStart = 300 - nameRadius
-  const namePathEnd = 300 + nameRadius
-  const starY = normalized.template === 'double-ring' ? 286 : 300
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
       <defs>
-        <path id="seal-name-path" d="M ${namePathStart} 315 A ${nameRadius} ${nameRadius} 0 0 1 ${namePathEnd} 315"/>
+        <path id="seal-name-path" d="M ${namePathStart} ${namePathY} A ${nameRadius} ${nameRadius} 0 1 1 ${namePathEnd} ${namePathY}"/>
       </defs>
       <circle cx="300" cy="300" r="270" fill="none" stroke="${color}" stroke-width="14"/>
-      ${innerRing}
-      <text ${commonText} font-size="${nameFontSize}" font-weight="600" letter-spacing="2">
+      <text ${commonText} font-size="${nameFontSize}" font-weight="500" letter-spacing="2">
         <textPath href="#seal-name-path" startOffset="50%" text-anchor="middle">${organizationName}</textPath>
       </text>
-      <polygon points="${createStarPoints(300, starY, 64)}" fill="${color}"/>
-      ${centerText ? `<text x="300" y="405" ${commonText} font-size="44" font-weight="600">${centerText}</text>` : ''}
+      ${star}
+      ${centerText ? `<text x="300" y="${normalized.template === 'plain-round' ? 325 : 420}" ${commonText} font-size="44" font-weight="600">${centerText}</text>` : ''}
       ${serialText ? `<text x="300" y="505" ${commonText} font-size="32" font-weight="500" letter-spacing="6">${serialText}</text>` : ''}
     </svg>
   `.trim()
@@ -268,4 +287,3 @@ export function getSealStampDimensions(config: SealConfig) {
     height: size.heightMm * pointsPerMillimeter * PDF_RENDER_SCALE,
   }
 }
-

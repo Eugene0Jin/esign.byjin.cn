@@ -43,8 +43,7 @@ function SealEditor({ initialConfig, hasSavedSeal }: SealEditorProps) {
       ...config,
       template: template.id,
       size: getDefaultSealSize(template.id),
-      organizationName: config.organizationName || 'COMPANY SEAL',
-      serialText: config.serialText || '1234567890',
+      organizationName: config.organizationName || DEFAULT_SEAL_CONFIG.organizationName,
     }),
   })), [config])
 
@@ -203,7 +202,7 @@ function SealEditor({ initialConfig, hasSavedSeal }: SealEditorProps) {
                   value={config.organizationName}
                   maxLength={30}
                   onChange={(event) => updateConfig('organizationName', event.target.value)}
-                  placeholder="Example Company Limited"
+                  placeholder="湖南省xx信息技术有限公司"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
@@ -218,7 +217,7 @@ function SealEditor({ initialConfig, hasSavedSeal }: SealEditorProps) {
                   value={config.centerText}
                   maxLength={10}
                   onChange={(event) => updateConfig('centerText', event.target.value)}
-                  placeholder="Official"
+                  placeholder="印章横排文字"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
@@ -233,7 +232,7 @@ function SealEditor({ initialConfig, hasSavedSeal }: SealEditorProps) {
                   value={config.serialText}
                   maxLength={20}
                   onChange={(event) => updateConfig('serialText', event.target.value)}
-                  placeholder="1234567890"
+                  placeholder="印章下弦文"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
