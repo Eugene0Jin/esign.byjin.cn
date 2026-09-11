@@ -32,6 +32,11 @@ export interface Stamp {
   dateFormat?: DateFormat
 }
 
+export interface PdfPageSize {
+  width: number
+  height: number
+}
+
 interface ContextMenu {
   visible: boolean
   x: number
@@ -66,6 +71,7 @@ export type CheckmarkVariant = 'square' | 'check'
 interface AppState {
   pdfFile: File | null
   pdfPages: string[]
+  pdfPageSizes: PdfPageSize[]
   stamps: Stamp[]
   stampHistory: Stamp[][]
   historyIndex: number
@@ -83,7 +89,7 @@ interface AppState {
   checkmarkVariant: CheckmarkVariant
 
   setPdfFile: (file: File | null) => void
-  setPdfPages: (pages: string[]) => void
+  setPdfPages: (pages: string[], pageSizes: PdfPageSize[]) => void
   addStamp: (stamp: Stamp) => void
   updateStamp: (id: string, updates: Partial<Stamp>) => void
   removeStamp: (id: string) => void
@@ -113,6 +119,7 @@ interface AppState {
 const initialState = {
   pdfFile: null,
   pdfPages: [],
+  pdfPageSizes: [] as PdfPageSize[],
   stamps: [] as Stamp[],
   stampHistory: [[]] as Stamp[][],
   historyIndex: 0,
@@ -134,7 +141,7 @@ export const useStore = create<AppState>((set) => ({
   ...initialState,
 
   setPdfFile: (file) => set({ pdfFile: file }),
-  setPdfPages: (pages) => set({ pdfPages: pages }),
+  setPdfPages: (pages, pageSizes) => set({ pdfPages: pages, pdfPageSizes: pageSizes }),
 
   addStamp: (stamp) => set((state) => {
     const newStamps = [...state.stamps, stamp]

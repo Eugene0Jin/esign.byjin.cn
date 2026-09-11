@@ -88,6 +88,7 @@ export default function PDFViewer() {
 
         setLoadingProgress({ loaded: 0, total: pdf.numPages })
         const pages: string[] = []
+        const pageSizes: Array<{ width: number; height: number }> = []
 
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i)
@@ -107,6 +108,7 @@ export default function PDFViewer() {
           if (cancelled) return
 
           pages.push(canvas.toDataURL())
+          pageSizes.push({ width: canvas.width, height: canvas.height })
           setLoadingProgress({ loaded: i, total: pdf.numPages })
 
           // PDF rendering and data URL conversion can monopolize the main
@@ -118,7 +120,7 @@ export default function PDFViewer() {
         const remainingVisibleTime = MIN_LOADING_VISIBLE_MS - (performance.now() - loadingStartedAt)
         if (remainingVisibleTime > 0) await wait(remainingVisibleTime)
 
-        if (!cancelled) setPdfPages(pages)
+        if (!cancelled) setPdfPages(pages, pageSizes)
       } catch (error) {
         if (cancelled) return
         console.error('PDF loading failed:', error)
