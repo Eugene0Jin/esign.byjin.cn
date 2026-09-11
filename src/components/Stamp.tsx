@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState, useEffect } from 'react'
+import { useCallback, useRef, useEffect } from 'react'
 import { useStore, Stamp as StampType } from '@/store/useStore'
 
 interface StampProps {
@@ -13,19 +13,24 @@ export default function Stamp({ stamp, scale = 1 }: StampProps) {
   const displayScale = Number.isFinite(scale) && scale > 0 ? scale : 1
   const isSelected = selectedStampId === stamp.id
   const isEditing = editingStampId === stamp.id
-  const [isResizing, setIsResizing] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
+  const activePointerId = useRef<number | null>(null)
+  const interactionMode = useRef<'drag' | 'resize' | null>(null)
   const dragStart = useRef({ x: 0, y: 0, stampX: 0, stampY: 0 })
-  const resizeStart = useRef({ width: 0, height: 0, mouseX: 0, mouseY: 0 })
+  const resizeStart = useRef({ width: 0, height: 0, pointerX: 0, pointerY: 0 })
   const inputRef = useRef<HTMLInputElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    if ((e.target as HTMLElement).classList.contains('resize-handle')) return
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return
 
+    e.stopPropagation()
+    if ((e.target as HTMLElement).closest('.resize-handle, button, input')) return
+
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    activePointerId.current = e.pointerId
+    interactionMode.current = 'drag'
     setSelectedStampId(stamp.id)
-    setIsDragging(true)
     dragStart.current = {
       x: e.clientX,
       y: e.clientY,
@@ -34,63 +39,67 @@ export default function Stamp({ stamp, scale = 1 }: StampProps) {
     }
   }, [stamp.id, stamp.x, stamp.y, setSelectedStampId])
 
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleResizePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return
+
     e.stopPropagation()
-    setIsResizing(true)
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    activePointerId.current = e.pointerId
+    interactionMode.current = 'resize'
     resizeStart.current = {
       width: stamp.width,
       height: stamp.height,
-      mouseX: e.clientX,
-      mouseY: e.clientY,
+      pointerX: e.clientX,
+      pointerY: e.clientY,
     }
   }, [stamp.width, stamp.height])
 
-  useEffect(() => {
-    if (!isDragging && !isResizing) return
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointerId.current !== e.pointerId || interactionMode.current === null) return
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        const dx = (e.clientX - dragStart.current.x) / displayScale
-        const dy = (e.clientY - dragStart.current.y) / displayScale
-        updateStamp(stamp.id, {
-          x: dragStart.current.stampX + dx,
-          y: dragStart.current.stampY + dy,
-        })
-      } else if (isResizing) {
-        const dx = (e.clientX - resizeStart.current.mouseX) / displayScale
-        const dy = (e.clientY - resizeStart.current.mouseY) / displayScale
+    e.preventDefault()
 
-        if (stamp.type === 'seal') {
-          const { width, height } = resizeStart.current
-          const scaleDelta = (dx * width + dy * height) / (width * width + height * height)
-          const minimumScale = Math.max(50 / width, 20 / height)
-          const nextScale = Math.max(minimumScale, 1 + scaleDelta)
-          updateStamp(stamp.id, {
-            width: width * nextScale,
-            height: height * nextScale,
-          })
-          return
-        }
-
-        const newWidth = Math.max(50, resizeStart.current.width + dx)
-        const newHeight = Math.max(20, resizeStart.current.height + dy)
-        // No max size limit - user can resize as large as needed
-        updateStamp(stamp.id, { width: newWidth, height: newHeight })
-      }
+    if (interactionMode.current === 'drag') {
+      const dx = (e.clientX - dragStart.current.x) / displayScale
+      const dy = (e.clientY - dragStart.current.y) / displayScale
+      updateStamp(stamp.id, {
+        x: dragStart.current.stampX + dx,
+        y: dragStart.current.stampY + dy,
+      })
+      return
     }
 
-    const handleMouseUp = () => {
-      setIsDragging(false)
-      setIsResizing(false)
+    const dx = (e.clientX - resizeStart.current.pointerX) / displayScale
+    const dy = (e.clientY - resizeStart.current.pointerY) / displayScale
+
+    if (stamp.type === 'seal') {
+      const { width, height } = resizeStart.current
+      const scaleDelta = (dx * width + dy * height) / (width * width + height * height)
+      const minimumScale = Math.max(50 / width, 20 / height)
+      const nextScale = Math.max(minimumScale, 1 + scaleDelta)
+      updateStamp(stamp.id, {
+        width: width * nextScale,
+        height: height * nextScale,
+      })
+      return
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+    const newWidth = Math.max(50, resizeStart.current.width + dx)
+    const newHeight = Math.max(20, resizeStart.current.height + dy)
+    // No max size limit - user can resize as large as needed
+    updateStamp(stamp.id, { width: newWidth, height: newHeight })
+  }, [displayScale, stamp.id, stamp.type, updateStamp])
+
+  const handlePointerEnd = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointerId.current !== e.pointerId) return
+
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
     }
-  }, [displayScale, isDragging, isResizing, stamp.id, stamp.type, updateStamp])
+    activePointerId.current = null
+    interactionMode.current = null
+  }, [])
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -200,7 +209,7 @@ export default function Stamp({ stamp, scale = 1 }: StampProps) {
   return (
     <div
       ref={contentRef}
-      className={`stamp-element absolute cursor-move ${
+      className={`stamp-element absolute touch-none cursor-move ${
         isSelected ? 'outline outline-2 outline-blue-500' : ''
       }`}
       style={{
@@ -209,7 +218,10 @@ export default function Stamp({ stamp, scale = 1 }: StampProps) {
         width: stamp.width * displayScale,
         height: stamp.height * displayScale,
       }}
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -218,9 +230,9 @@ export default function Stamp({ stamp, scale = 1 }: StampProps) {
       {isSelected && (
         <>
           <div
-            className="resize-handle absolute w-3 h-3 bg-blue-500 cursor-se-resize rounded-sm"
+            className="resize-handle absolute h-4 w-4 touch-none rounded-sm bg-blue-500 cursor-se-resize sm:h-3 sm:w-3"
             style={{ right: -6, bottom: -6 }}
-            onMouseDown={handleResizeMouseDown}
+            onPointerDown={handleResizePointerDown}
           />
           <button
             className="absolute w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
